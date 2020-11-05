@@ -132,6 +132,7 @@ dmypy.json
 .ipynb_checkpoints/
 .idea/
 .vscode/
+cmu*/
 
 *.aux
 *.fdb_latexmk
