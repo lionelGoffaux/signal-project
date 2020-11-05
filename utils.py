@@ -1,4 +1,5 @@
 import numpy as np
+from functools import reduce
 
 
 def normalize(sin):
@@ -18,3 +19,7 @@ def split(sin, width, step, fs):
         frames.append(f)
 
     return np.array(frames)
+
+
+def energy(sig):
+    return reduce(lambda a, b: a + b, map(lambda x: abs(x)**2, sig))
