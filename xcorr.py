@@ -27,7 +27,7 @@ def xcorr(x, y = None, scale='none', maxlag = None):
             pad_amount = y.size - x.size
             x = np.append(x, np.repeat(0, pad_amount))
     if maxlag is None:
-        maxlag = (x.size+y.size-1)/2
+        maxlag = (x.size+y.size-1)//2
     if maxlag>round((y.size+x.size-1)/2):
         raise ValueError("maxlag should be <= round(y.size+x.size-1)/2")
     corr = np.correlate(x, y, mode='full')  # scale = 'none'
