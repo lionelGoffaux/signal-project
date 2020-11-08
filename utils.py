@@ -36,7 +36,7 @@ def split(sin, width, step, fs):
 
 
 def energy(sig):
-    return reduce(lambda a, b: a + b, map(lambda x: abs(x)**2, sig))
+    return (abs(sig)**2).sum()
 
 
 def autocorrelation(sig, width, step, fs, treshold):
