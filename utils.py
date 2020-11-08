@@ -1,12 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.signal as sgl
 from functools import reduce
 from xcorr import xcorr
 from scipy.io.wavfile import read
 
 
+def to_db(h, N=2):
+    return 20*np.log10(np.maximum(np.abs(h)*2/N, 1e-5))
+
+
 def normalize(sin):
-    return sin/abs(sin).max()
+    return sin/np.abs(sin).max()
 
 
 def split(sin, width, step, fs):
@@ -19,7 +24,7 @@ def split(sin, width, step, fs):
     width_len = int(width/1000 * fs)
 
     if width_len <= 0 or step_len <= 0 or width_len > len(sin):
-        raise ValueError()
+        raise ValueError(f'{width_len=}, {step_len=}, {width_len > len(sin)=}')
 
     for i in range(0, len(sin), step_len):
         f = sin[i:i+width_len]
@@ -49,15 +54,22 @@ def autocorrelation(sig, width, step, fs, treshold):
     print(voiced.shape, unvoiced.shape)
 
     lags, voiced_peaks = xcorr(voiced[9], maxlag=50)
-    plt.figure()
-    plt.plot(lags, voiced_peaks)
-    plt.show()
+    # TODO
 
 
-if __name__ == "__main__":
-    Fs, sig = read("cmu_us_bdl_arctic/wav/arctic_a0001.wav")
-    print(sig.shape)
-    # plt.figure()
-    # plt.plot(sig)
-    # plt.show()
-    autocorrelation(sig, 100, 100, Fs, 10)
+def cepstrum(sig, width, step, fs, treshold):
+    sig = normalize(sig)
+    frames = split(sig, width, step, fs)
+    voiced = []
+    unvoiced = []
+    for frame in frames:
+        if energy(frame) < treshold:
+            unvoiced.append(frame)
+        else:
+            voiced.append(frame)
+    voiced = np.array(voiced)
+    unvoiced = np.array(unvoiced)
+
+    for frame in voiced:
+        _, spectrum = sgl.freqz(frame)
+        log_spectrum = to_db(spectrum)
