@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.signal as sgl
 from xcorr import xcorr
 from scipy.io.wavfile import read
+import librosa as rosa
 
 
 def to_db(h, N=2):
@@ -95,3 +96,32 @@ def cepstrum(sig, width, step, fs, treshold):
     for frame in voiced:
         _, spectrum = sgl.freqz(frame)
         log_spectrum = to_db(spectrum)
+
+
+def formants(sig, width, step, fs):
+    frames = split(sig, width, step, fs)
+    b, a = [1, -0.67], [1]
+    roots = []
+    for frame in frames:
+        filtered_frame = sgl.lfilter(b, a, frame)
+        hamming_win = sgl.windows.hamming(filtered_frame.size)
+        filtered_frame *= hamming_win  # apply hamming window on the frame
+        lpc = rosa.lpc(filtered_frame, int(2 + fs / 1000))
+        root = np.roots(lpc)
+
+        for r in root:
+            if np.imag(r) >= 0:
+                roots.append(r)
+
+    angles = np.angle(roots)
+    freq = (angles * (fs / (2 * np.pi)))
+    return freq
+
+
+if __name__ == "__main__":
+    x = np.arange(20000)
+    sig = np.sin(440 / 10000 * 2 * np.pi * x)
+    # plt.figure()
+    # plt.plot(x, sig)
+    # plt.show()
+    formants(sig, 25, 5, 10000)
