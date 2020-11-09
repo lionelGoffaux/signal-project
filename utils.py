@@ -1,3 +1,5 @@
+import random
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sgl
@@ -7,6 +9,29 @@ from scipy.io.wavfile import read
 
 def to_db(h, N=2):
     return 20*np.log10(np.maximum(np.abs(h)*2/N, 1e-5))
+
+
+def get_timeAxis(fs, sin):
+    n = np.arange(len(sin))
+    return n/fs
+
+
+def pick_random_files(n=5, random_state=None):
+    man_path = 'cmu_us_bdl_arctic/wav/'
+    woman_path = 'cmu_us_slt_arctic/wav/'
+
+    man_files = os.listdir(man_path)
+    woman_files = os.listdir(woman_path)
+
+    if random_state is not None:
+        random.seed(random_state)
+
+    man_result = map(lambda file: os.path.join(man_path, file),
+                     random.sample(man_files, k=n))
+    woman_result = map(lambda file: os.path.join(woman_path, file),
+                       random.sample(woman_files, k=n))
+
+    return list(man_result), list(woman_result)
 
 
 def normalize(sin):
@@ -95,3 +120,74 @@ def cepstrum(sig, width, step, fs, treshold):
     for frame in voiced:
         _, spectrum = sgl.freqz(frame)
         log_spectrum = to_db(spectrum)
+        # TODO
+
+
+def plot_energy(signal, width, step, fs, threshold=None):
+    step_len = int(fs*step/1000)
+    t = get_timeAxis(fs, signal)
+    frames = split(normalize(signal), width, step, fs)
+    energies = []
+
+    for f in frames:
+        energies += [energy(f)]*step_len
+
+    fig, ax = plt.subplots(2, 1, figsize=(10, 12))
+
+    ax[0].plot(t, signal)
+    ax[0].set_title('Signal')
+    ax[0].set_ylabel('Amplitude (V)')
+    ax[0].set_xlabel('Time (s)')
+    ax[0].grid()
+    ax[0].margins(x=0)
+
+    ax[1].plot(t[:len(energies)], energies, label='energy')
+    ax[1].axhline(threshold, c='r', label='threshold')
+    ax[1].set_title('Energy')
+    ax[1].set_ylabel('Energy')
+    ax[1].set_xlabel('Time (s)')
+    ax[1].legend()
+    ax[1].grid()
+    ax[1].margins(x=0)
+
+    plt.show()
+
+
+def get_pitch(frame, fs, threshold=5):
+    lags, corr = xcorr(frame, maxlag=fs//50)
+    distance = get_distance(lags, corr)
+    e = energy(frame)
+    return fs/distance if e >= threshold else 0
+
+
+def plot_pitch(signal, width, step, fs, threshold):
+    step_len = int(fs*step/1000)
+    t = get_timeAxis(fs, signal)
+    frames = split(normalize(signal), width, step, fs)
+    pitch = []
+
+    for f in frames:
+        pitch += [get_pitch(f, fs)]*step_len
+
+    fig, ax = plt.subplots(2, 1, figsize=(10, 12))
+
+    ax[0].plot(t, signal)
+    ax[0].set_title('Signal')
+    ax[0].set_ylabel('Amplitude (V)')
+    ax[0].set_xlabel('Time (s)')
+    ax[0].grid()
+    ax[0].margins(x=0)
+
+    ax[1].plot(t[:len(pitch)], pitch)
+    ax[1].set_title('Pitch')
+    ax[1].set_ylabel('Pitch (Hz)')
+    ax[1].set_xlabel('Time (s)')
+    ax[1].grid()
+    ax[1].margins(x=0)
+    
+    plt.show()
+
+
+if __name__ == "__main__":
+    fs, sentence = read('cmu_us_bdl_arctic/wav/arctic_a0001.wav')
+    plot_energy(sentence, 21, 10, fs, 5)
