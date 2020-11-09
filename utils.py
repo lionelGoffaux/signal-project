@@ -68,7 +68,7 @@ def get_distance(lags, corr):
 
     for n in range(2):
         for i in range(start, len(corr)-1):
-            if corr[i-1] <= corr[i] and corr[i+1] <= corr[i]:
+            if corr[i-1] < corr[i] and corr[i+1] < corr[i]:
                 result[n] = i
                 start = i+1
                 break
