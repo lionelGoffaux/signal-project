@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.signal as sgl
-from functools import reduce
 from xcorr import xcorr
 from scipy.io.wavfile import read
 
@@ -39,22 +38,45 @@ def energy(sig):
     return (abs(sig)**2).sum()
 
 
-def autocorrelation(sig, width, step, fs, treshold):
+def autocorrelation(sig, width, step, fs, threshold):
     sig = normalize(sig)
     frames = split(sig, width, step, fs)
     voiced = []
     unvoiced = []
+    result = []
+
     for frame in frames:
-        if energy(frame) < treshold:
+        if energy(frame) < threshold:
             unvoiced.append(frame)
         else:
             voiced.append(frame)
+
     voiced = np.array(voiced)
     unvoiced = np.array(unvoiced)
-    print(voiced.shape, unvoiced.shape)
 
-    lags, voiced_peaks = xcorr(voiced[9], maxlag=50)
-    # TODO
+    for f in voiced:
+        lags, corr = xcorr(f, maxlag=fs//50)
+        distance = get_distance(lags, corr)
+        result.append(fs/distance if distance != -1 else -1)
+
+    return np.array(result)
+
+
+def get_distance(lags, corr):
+    result = [-1, -1]
+    start = 1
+
+    for n in range(2):
+        for i in range(start, len(corr)-1):
+            if corr[i-1] <= corr[i] and corr[i+1] <= corr[i]:
+                result[n] = i
+                start = i+1
+                break
+
+    if -1 in result:
+        return -1
+
+    return result[1] - result[0]
 
 
 def cepstrum(sig, width, step, fs, treshold):
