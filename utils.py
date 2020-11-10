@@ -59,11 +59,11 @@ def split(sin, width, step, fs):
     return np.array(frames)
 
 
-def energy(sig):
-    return (abs(sig)**2).sum()
+def frame_energy(frame):
+    return (abs(frame)**2).sum()
 
 
-def autocorrelation(sig, width, step, fs, threshold):
+'''def __autocorrelation(sig, width, step, fs, threshold):
     sig = normalize(sig)
     frames = split(sig, width, step, fs)
     voiced = []
@@ -84,7 +84,7 @@ def autocorrelation(sig, width, step, fs, threshold):
         distance = get_distance(lags, corr)
         result.append(fs/distance if distance != -1 else -1)
 
-    return np.array(result)
+    return np.array(result)'''
 
 
 def get_distance(lags, corr):
@@ -94,7 +94,7 @@ def get_distance(lags, corr):
     for n in range(2):
         for i in range(start, len(corr)-1):
             if corr[i-1] <= corr[i] and corr[i+1] <= corr[i]:
-                result[n] = i
+                result[n] = lags[i]
                 start = i+1
                 break
 
@@ -104,7 +104,7 @@ def get_distance(lags, corr):
     return result[1] - result[0]
 
 
-def cepstrum(sig, width, step, fs, treshold):
+'''def __cepstrum(sig, width, step, fs, treshold):
     sig = normalize(sig)
     frames = split(sig, width, step, fs)
     voiced = []
@@ -120,7 +120,38 @@ def cepstrum(sig, width, step, fs, treshold):
     for frame in voiced:
         _, spectrum = sgl.freqz(frame)
         log_spectrum = to_db(spectrum)
-        # TODO
+        # TODO'''
+
+
+def autocorrelation(frame, fs, threshold):
+    if frame_energy(frame) < threshold:
+        return 0
+    lags, corr = xcorr(frame, maxlag=fs//50)
+    distance = get_distance(lags, corr)
+    return fs/distance
+
+
+def cepstrum(frame, fs, threshold):
+    if frame_energy(frame) < threshold:
+        return 0
+
+    start = fs//500
+    hamming = sgl.windows.hamming(len(frame))
+    frame *= hamming
+    logSpectrum = np.log(abs(sgl.freqz(frame)[1]))
+    ceps = abs(sgl.freqz(logSpectrum)[1])
+    return fs/np.arange(len(ceps))[ceps == ceps[start:].max()][0]
+
+
+def get_pitch(signal, width, step, fs, threshold, methode=autocorrelation):
+    step_len = int(fs*step/1000)
+    frames = split(normalize(signal), width, step, fs)
+    pitch = []
+
+    for f in frames:
+        pitch += [methode(f, fs, threshold)] * step_len
+
+    return pitch
 
 
 def plot_energy(signal, width, step, fs, threshold=None):
@@ -130,7 +161,7 @@ def plot_energy(signal, width, step, fs, threshold=None):
     energies = []
 
     for f in frames:
-        energies += [energy(f)]*step_len
+        energies += [frame_energy(f)]*step_len
 
     fig, ax = plt.subplots(2, 1, figsize=(10, 12))
 
@@ -153,21 +184,9 @@ def plot_energy(signal, width, step, fs, threshold=None):
     plt.show()
 
 
-def get_pitch(frame, fs, threshold=5):
-    lags, corr = xcorr(frame, maxlag=fs//50)
-    distance = get_distance(lags, corr)
-    e = energy(frame)
-    return fs/distance if e >= threshold else 0
-
-
-def plot_pitch(signal, width, step, fs, threshold):
-    step_len = int(fs*step/1000)
+def plot_pitch(signal, width, step, fs, threshold, methode=autocorrelation):
     t = get_timeAxis(fs, signal)
-    frames = split(normalize(signal), width, step, fs)
-    pitch = []
-
-    for f in frames:
-        pitch += [get_pitch(f, fs)]*step_len
+    pitch = get_pitch(signal, width, step, fs, threshold, methode)
 
     fig, ax = plt.subplots(2, 1, figsize=(10, 12))
 
@@ -186,8 +205,3 @@ def plot_pitch(signal, width, step, fs, threshold):
     ax[1].margins(x=0)
     
     plt.show()
-
-
-if __name__ == "__main__":
-    fs, sentence = read('cmu_us_bdl_arctic/wav/arctic_a0001.wav')
-    plot_energy(sentence, 21, 10, fs, 5)
