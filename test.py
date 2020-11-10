@@ -78,6 +78,20 @@ class UtilsTest(unittest.TestCase):
         sin = np.array([1, -2, 3, -4])
         self.assertEqual(30, utils.frame_energy(sin))
 
+    def test_get_distance(self):
+        x = np.arange(5)
+        y = np.array([0, 3, -4, 4, 0])
+        self.assertEqual(2, utils.get_distance(x, y))
+        y = np.zeros(5)
+        self.assertEqual(-1, utils.get_distance(x, y))
+
+    def test_autocorrelation(self):
+        x = np.arange(0, 200)
+        sig = np.sin(440/880*2*np.pi*x)
+        corr = utils.autocorrelation(sig, 40, 5, 880, 5)
+        for f in corr:
+            self.assertEqual(f, 440.)
+
 
 if __name__ == "__main__":
     unittest.main()

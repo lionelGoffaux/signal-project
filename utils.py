@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import scipy.signal as sgl
 from xcorr import xcorr
 from scipy.io.wavfile import read
+import librosa as rosa
 
 
 def to_db(h, N=2):
@@ -93,8 +94,9 @@ def get_distance(lags, corr):
 
     for n in range(2):
         for i in range(start, len(corr)-1):
-            if corr[i-1] <= corr[i] and corr[i+1] <= corr[i]:
+            if corr[i-1] < corr[i] and corr[i+1] < corr[i]:
                 result[n] = lags[i]
+
                 start = i+1
                 break
 
@@ -205,3 +207,23 @@ def plot_pitch(signal, width, step, fs, threshold, methode=autocorrelation):
     ax[1].margins(x=0)
     
     plt.show()
+
+
+def formants(sig, width, step, fs):
+    frames = split(sig, width, step, fs)
+    b, a = [1, -0.67], [1]
+    roots = []
+    for frame in frames:
+        filtered_frame = sgl.lfilter(b, a, frame)
+        hamming_win = sgl.windows.hamming(filtered_frame.size)
+        filtered_frame *= hamming_win  # apply hamming window on the frame
+        lpc = rosa.lpc(filtered_frame, int(2 + fs / 1000))
+        root = np.roots(lpc)
+
+        for r in root:
+            if np.imag(r) >= 0:
+                roots.append(r)
+
+    angles = np.angle(roots)
+    freq = (angles * (fs / (2 * np.pi)))
+    return freq
