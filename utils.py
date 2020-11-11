@@ -6,6 +6,8 @@ import scipy.signal as sgl
 from xcorr import xcorr
 from scipy.io.wavfile import read
 import librosa as rosa
+from filterbanks import filter_banks
+import scipy.fft
 
 
 def get_timeAxis(fs, sin):
@@ -233,3 +235,21 @@ def formants(sig, width, step, fs):
     freq = angles*(fs/(2*np.pi))
     freq.sort()
     return freq
+
+
+def mfcc(sig, width, step, fs, Ntfd=512):
+    b, a = [1, -0.97], [1]
+    sig = sgl.lfilter(b, a, sig)
+    frames = split(sig, width, step, fs)
+    P = []
+
+    for frame in frames:
+        win_frame = sgl.windows.hamming(frame.size) * frame
+        p = (np.abs(sgl.freqz(win_frame, worN=Ntfd)[1]) ** 2) / Ntfd
+        # p = ((np.abs(scipy.fft.fft(win_frame, Ntfd))) ** 2) / Ntfd
+        P.append(p)
+
+    P = np.array(P)
+    filtered_P = filter_banks(P, fs, NFFT=1023)
+    res = scipy.fft.dct(filtered_P, type=2, axis=1, norm='ortho')
+    return res[:13]

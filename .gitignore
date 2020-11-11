@@ -139,3 +139,5 @@ cmu*/
 *.fls
 *.out
 *.gz
+zplane.py
+Doriano_test.ipynb
