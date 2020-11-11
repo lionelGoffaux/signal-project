@@ -8,10 +8,6 @@ from scipy.io.wavfile import read
 import librosa as rosa
 
 
-def to_db(h, N=2):
-    return 20*np.log10(np.maximum(np.abs(h)*2/N, 1e-5))
-
-
 def get_timeAxis(fs, sin):
     n = np.arange(len(sin))
     return n/fs
@@ -27,12 +23,20 @@ def pick_random_files(n=5, random_state=None):
     if random_state is not None:
         random.seed(random_state)
 
-    man_result = map(lambda file: os.path.join(man_path, file),
-                     random.sample(man_files, k=n))
-    woman_result = map(lambda file: os.path.join(woman_path, file),
-                       random.sample(woman_files, k=n))
+    man_result = []
+    for f in map(lambda file: os.path.join(man_path, file),
+                 random.sample(man_files, k=n)):
+        fs, signal = read(f)
+        man_result.append((fs, signal))
 
-    return list(man_result), list(woman_result)
+    woman_result = []
+
+    for f in map(lambda file: os.path.join(woman_path, file),
+                 random.sample(woman_files, k=n)):
+        fs, signal = read(f)
+        woman_result.append((fs, signal))
+
+    return man_result, woman_result
 
 
 def normalize(sin):
@@ -145,15 +149,16 @@ def cepstrum(frame, fs, threshold):
     return fs/np.arange(len(ceps))[ceps == ceps[start:].max()][0]
 
 
-def get_pitch(signal, width, step, fs, threshold, methode=autocorrelation):
+def get_pitch(signal, width, step, fs, threshold, methode=autocorrelation, extend=True):
     step_len = int(fs*step/1000)
     frames = split(normalize(signal), width, step, fs)
     pitch = []
 
     for f in frames:
-        pitch += [methode(f, fs, threshold)] * step_len
+        p = methode(f, fs, threshold)
+        pitch += [p] * (step_len if extend else 1) if p != 0 else []
 
-    return pitch
+    return np.array(pitch)
 
 
 def plot_energy(signal, width, step, fs, threshold=None):
@@ -205,7 +210,7 @@ def plot_pitch(signal, width, step, fs, threshold, methode=autocorrelation):
     ax[1].set_xlabel('Time (s)')
     ax[1].grid()
     ax[1].margins(x=0)
-    
+
     plt.show()
 
 
@@ -217,13 +222,14 @@ def formants(sig, width, step, fs):
         filtered_frame = sgl.lfilter(b, a, frame)
         hamming_win = sgl.windows.hamming(filtered_frame.size)
         filtered_frame *= hamming_win  # apply hamming window on the frame
-        lpc = rosa.lpc(filtered_frame, int(2 + fs / 1000))
+        lpc = rosa.lpc(filtered_frame, 9)
         root = np.roots(lpc)
 
         for r in root:
-            if np.imag(r) >= 0:
+            if np.imag(r) > 0:
                 roots.append(r)
 
     angles = np.angle(roots)
-    freq = (angles * (fs / (2 * np.pi)))
+    freq = angles*(fs/(2*np.pi))
+    freq.sort()
     return freq
