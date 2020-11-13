@@ -2,6 +2,7 @@ import random
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import scipy.signal as sgl
 from xcorr import xcorr
 from scipy.io.wavfile import read
@@ -21,24 +22,25 @@ def pick_random_files(n=5, random_state=None):
 
     man_files = os.listdir(man_path)
     woman_files = os.listdir(woman_path)
+    result = {}
 
     if random_state is not None:
         random.seed(random_state)
 
-    man_result = []
+    result['bdl'] = []
     for f in map(lambda file: os.path.join(man_path, file),
                  random.sample(man_files, k=n)):
         fs, signal = read(f)
-        man_result.append((fs, signal))
+        result['bdl'].append((fs, signal))
 
-    woman_result = []
+    result['slt'] = []
 
     for f in map(lambda file: os.path.join(woman_path, file),
                  random.sample(woman_files, k=n)):
         fs, signal = read(f)
-        woman_result.append((fs, signal))
+        result['slt'].append((fs, signal))
 
-    return man_result, woman_result
+    return result
 
 
 def normalize(sin):
@@ -216,7 +218,7 @@ def plot_pitch(signal, width, step, fs, threshold, methode=autocorrelation):
     plt.show()
 
 
-def formants(sig, width, step, fs):
+def formants(sig, width, step, fs, nb=4):
     frames = split(sig, width, step, fs)
     b, a = [1, -0.67], [1]
     roots = []
@@ -226,14 +228,13 @@ def formants(sig, width, step, fs):
         filtered_frame *= hamming_win  # apply hamming window on the frame
         lpc = rosa.lpc(filtered_frame, 9)
         root = np.roots(lpc)
-
-        for r in root:
-            if np.imag(r) > 0:
-                roots.append(r)
+        frame_res = np.sort(root[root.imag > 0])[:4]
+        if len(frame_res < nb):
+            frame_res = np.concatenate((frame_res, [0]*(nb-len(frame_res))))
+        roots.append(frame_res)
 
     angles = np.angle(roots)
     freq = angles*(fs/(2*np.pi))
-    freq.sort()
     return freq
 
 
@@ -253,3 +254,54 @@ def mfcc(sig, width, step, fs, Ntfd=512):
     filtered_P = filter_banks(P, fs, NFFT=1023)
     res = scipy.fft.dct(filtered_P, type=2, axis=1, norm='ortho')
     return res[:, :13]
+
+
+def build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=15, random_sate=None):
+    data = pick_random_files(wav_number, random_state=random_sate)
+
+    fs = []
+    duration = []
+    autocorr_pitch_mean = []
+    autocorr_pitch_median = []
+    cepstrum_pitch_mean = []
+    cepstrum_pitch_median = []
+    form = {}
+    dmfcc = {}
+    speaker = []
+
+    for i in range(13):
+        dmfcc[f'mfcc{i}'] = []
+
+    for i in range(formants_number):
+        form[f'f{i}_mean'] = []
+
+    for spkr, files in data.items():
+        for sfs, signal in files:
+            sformants = formants(signal, width, step, sfs)
+            auto_pitch = get_pitch(signal, width, step, sfs, threshold, methode=autocorrelation, extend=False)
+            cepstrum_pitch = get_pitch(signal, width, step, sfs, threshold, methode=cepstrum, extend=False)
+            smfcc = mfcc(signal, width, step, sfs)
+
+            for i in range(smfcc.shape[1]):
+                dmfcc[f'mfcc{i}'].append(smfcc[:, i].mean())
+
+            for i in range(formants_number):
+                form[f'f{i}_mean'].append(sformants[:, i].mean())
+
+            fs.append(sfs)
+            duration.append(signal.size / sfs)
+
+            autocorr_pitch_mean.append(auto_pitch.mean())
+            autocorr_pitch_median.append(np.median(auto_pitch))
+            cepstrum_pitch_mean.append(cepstrum_pitch.mean())
+            cepstrum_pitch_median.append(np.median(cepstrum_pitch))
+            speaker.append(spkr)
+
+    d = {'fs': fs, 'duration': duration, 'autocorr_pitch_mean': autocorr_pitch_mean,
+         'autocorr_pitch_median': autocorr_pitch_median,
+         'cepstrum_pitch_mean': cepstrum_pitch_mean, 'cepstrum_pitch_median': cepstrum_pitch_median,
+         'speaker': speaker}
+    d.update(form)
+    d.update(dmfcc)
+
+    return pd.DataFrame(data=d)
