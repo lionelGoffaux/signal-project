@@ -252,4 +252,4 @@ def mfcc(sig, width, step, fs, Ntfd=512):
     P = np.array(P)
     filtered_P = filter_banks(P, fs, NFFT=1023)
     res = scipy.fft.dct(filtered_P, type=2, axis=1, norm='ortho')
-    return res[:13]
+    return res[:, :13]
