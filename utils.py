@@ -160,7 +160,7 @@ def get_pitch(signal, width, step, fs, threshold, methode=autocorrelation, exten
 
     for f in frames:
         p = methode(f, fs, threshold)
-        pitch += [p] * (step_len if extend else 1) if p != 0 else []
+        pitch += [p] * (step_len if extend else 1) if p != 0 or extend else []
 
     return np.array(pitch)
 
