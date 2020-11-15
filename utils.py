@@ -4,11 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import scipy.signal as sgl
+import scipy.fft
 from xcorr import xcorr
 from scipy.io.wavfile import read
-import librosa as rosa
 from filterbanks import filter_banks
-import scipy.fft
+from py_lpc import lpc_ref
 
 
 def get_timeAxis(fs, sin):
@@ -226,7 +226,7 @@ def formants(sig, width, step, fs, nb=4):
         filtered_frame = sgl.lfilter(b, a, frame)
         hamming_win = sgl.windows.hamming(filtered_frame.size)
         filtered_frame *= hamming_win  # apply hamming window on the frame
-        lpc = rosa.lpc(filtered_frame, 9)
+        lpc = lpc_ref(filtered_frame, 9)
         root = np.roots(lpc)
         frame_res = np.sort(root[root.imag > 0])[:4]
         if len(frame_res < nb):
