@@ -153,13 +153,13 @@ def cepstrum(frame, fs, threshold):
     return fs/np.arange(len(ceps))[ceps == ceps[start:].max()][0]
 
 
-def get_pitch(signal, width, step, fs, threshold, methode=autocorrelation, extend=True):
+def get_pitch(signal, width, step, fs, threshold, method=autocorrelation, extend=True):
     step_len = int(fs*step/1000)
     frames = split(normalize(signal), width, step, fs)
     pitch = []
 
     for f in frames:
-        p = methode(f, fs, threshold)
+        p = method(f, fs, threshold)
         pitch += [p] * (step_len if extend else 1) if p != 0 or extend else []
 
     return np.array(pitch)
@@ -195,9 +195,9 @@ def plot_energy(signal, width, step, fs, threshold=None):
     plt.show()
 
 
-def plot_pitch(signal, width, step, fs, threshold, methode=autocorrelation):
+def plot_pitch(signal, width, step, fs, threshold, method=autocorrelation):
     t = get_timeAxis(fs, signal)
-    pitch = get_pitch(signal, width, step, fs, threshold, methode)
+    pitch = get_pitch(signal, width, step, fs, threshold, method)
 
     fig, ax = plt.subplots(2, 1, figsize=(10, 12))
 
@@ -228,14 +228,15 @@ def formants(sig, width, step, fs, nb=4):
         filtered_frame *= hamming_win  # apply hamming window on the frame
         lpc = rosa.lpc(filtered_frame, 9)
         root = np.roots(lpc)
-        frame_res = np.sort(root[root.imag > 0])[:4]
+        frame_res = root[root.imag > 0][:nb]
         if len(frame_res < nb):
             frame_res = np.concatenate((frame_res, [0]*(nb-len(frame_res))))
+            frame_res = np.sort(frame_res)
         roots.append(frame_res)
 
     angles = np.angle(roots)
     freq = angles*(fs/(2*np.pi))
-    return freq
+    return np.sort(freq, axis=1)
 
 
 def mfcc(sig, width, step, fs, Ntfd=512):
@@ -273,7 +274,7 @@ def build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=
         dmfcc[f'mfcc{i}'] = []
 
     for i in range(formants_number):
-        form[f'f{i}_mean'] = []
+        form[f'f{i+1}_mean'] = []
 
     for spkr, files in data.items():
         for sfs, signal in files:
@@ -286,7 +287,7 @@ def build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=
                 dmfcc[f'mfcc{i}'].append(smfcc[:, i].mean())
 
             for i in range(formants_number):
-                form[f'f{i}_mean'].append(sformants[:, i].mean())
+                form[f'f{i+1}_mean'].append(sformants[:, i].mean())
 
             fs.append(sfs)
             duration.append(signal.size / sfs)
