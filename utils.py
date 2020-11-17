@@ -364,9 +364,6 @@ def plot_pitch(signal, width, step, fs, threshold, method=autocorrelation):
     plt.show()
 
 
-<<<<<<< HEAD
-def plot_formants(signal, width, step, fs, nb=4):
-=======
 def plot_formant(signal, width, step, fs, nb=4):
     """
     plot_formant(signal, width, step, fs, nb=4)
@@ -382,7 +379,6 @@ def plot_formant(signal, width, step, fs, nb=4):
         fs : float
             The sampling frequency.
     """
->>>>>>> 5256eea5a10a2316c0a22e879284bfe742ad122f
     formant = formants(signal, width, step, fs, nb)
     axis = get_timeAxis(1/(step*1e-3), formant[:, 0])
     plt.figure(figsize=(12, 7))
