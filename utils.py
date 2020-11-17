@@ -1,29 +1,63 @@
-import random
 import os
+import random
 import warnings
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import seaborn as sns
-import scipy.signal as sgl
 import scipy.fft
-from xcorr import xcorr
+import scipy.signal as sgl
+import seaborn as sns
 from scipy.io.wavfile import read
-from sklearn.model_selection import train_test_split
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.model_selection import learning_curve
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+
 from filterbanks import filter_banks
 from py_lpc import lpc_ref
+from xcorr import xcorr
 
 
-def get_timeAxis(fs, sin):
-    n = np.arange(len(sin))
+def get_timeAxis(fs, signal):
+    """
+    get_timeAxis(fs, signal)
+        Compute the time axis which correspond to a signal.
+
+        Parameters
+        ----------
+        fs : float
+            The sampling frequency.
+        signal : ndarray
+
+
+        Returns
+        -------
+        time : ndarray
+            The time axis.
+    """
+    n = np.arange(len(signal))
     return n/fs
 
 
 def pick_random_files(n=5, random_state=None):
+    """
+    pick_random_files(n=5, random_state=None)
+        Get n signal(s) randomly for each of the two speakers.
+
+        Parameters
+        ----------
+        n : integer, optional
+            The number of signal for each speaker.
+        random_state :  integer, optional
+
+
+        Returns
+        -------
+        time : dict
+            A dic in which each speaker has a list of signal.
+    """
     man_path = 'cmu_us_bdl_arctic/wav/'
     woman_path = 'cmu_us_slt_arctic/wav/'
 
@@ -50,11 +84,41 @@ def pick_random_files(n=5, random_state=None):
     return result
 
 
-def normalize(sin):
-    return sin/np.abs(sin).max()
+def normalize(signal):
+    """
+   normalize(signal)
+       Normalize a signal.
+
+       Parameters
+       ----------
+        signal : ndarray
+
+       Returns
+       -------
+       normalize_signal: ndarray
+    """
+    return signal / np.abs(signal).max()
 
 
-def split(sin, width, step, fs):
+def split(signal, width, step, fs):
+    """
+    split(signal, width, step, fs)
+        Split a signal into frames.
+
+        Parameters
+        ----------
+        signal : ndarray
+        width : float
+            The width of frame in ms.
+        step : float
+            The step between two frames in ms.
+        fs : float
+            The sampling frequency.
+
+        Returns
+        -------
+        frames: ndarray
+    """
     if width <= 0 or step <= 0:
         raise ValueError()
 
@@ -63,11 +127,11 @@ def split(sin, width, step, fs):
     step_len = int(step/1000 * fs)
     width_len = int(width/1000 * fs)
 
-    if width_len <= 0 or step_len <= 0 or width_len > len(sin):
-        raise ValueError(f'{width_len=}, {step_len=}, {width_len > len(sin)=}')
+    if width_len <= 0 or step_len <= 0 or width_len > len(signal):
+        raise ValueError(f'{width_len=}, {step_len=}, {width_len > len(signal)=}')
 
-    for i in range(0, len(sin), step_len):
-        f = sin[i:i+width_len]
+    for i in range(0, len(signal), step_len):
+        f = signal[i:i + width_len]
         if len(f) != width_len:
             break
         frames.append(f)
@@ -76,34 +140,38 @@ def split(sin, width, step, fs):
 
 
 def frame_energy(frame):
+    """
+    frame_energy(frame)
+        Compute the energy of a frame.
+
+        Parameters
+        ----------
+        frame : ndarray
+
+        Returns
+        -------
+        energy: float
+    """
     return (abs(frame)**2).sum()
 
 
-'''def __autocorrelation(sig, width, step, fs, threshold):
-    sig = normalize(sig)
-    frames = split(sig, width, step, fs)
-    voiced = []
-    unvoiced = []
-    result = []
-
-    for frame in frames:
-        if energy(frame) < threshold:
-            unvoiced.append(frame)
-        else:
-            voiced.append(frame)
-
-    voiced = np.array(voiced)
-    unvoiced = np.array(unvoiced)
-
-    for f in voiced:
-        lags, corr = xcorr(f, maxlag=fs//50)
-        distance = get_distance(lags, corr)
-        result.append(fs/distance if distance != -1 else -1)
-
-    return np.array(result)'''
-
-
 def get_distance(lags, corr):
+    """
+    get_distance(lags, corr)
+        Get the distance between to peaks in the autocorrelation of a
+        signal.
+
+        Parameters
+        ----------
+        lags : ndarray
+        corr : ndarray
+
+        Returns
+        -------
+        distance: int
+            In number of samples.
+            -1 if not found.
+    """
     result = [-1, -1]
     start = 1
 
@@ -121,26 +189,23 @@ def get_distance(lags, corr):
     return result[1] - result[0]
 
 
-'''def __cepstrum(sig, width, step, fs, treshold):
-    sig = normalize(sig)
-    frames = split(sig, width, step, fs)
-    voiced = []
-    unvoiced = []
-    for frame in frames:
-        if energy(frame) < treshold:
-            unvoiced.append(frame)
-        else:
-            voiced.append(frame)
-    voiced = np.array(voiced)
-    unvoiced = np.array(unvoiced)
-
-    for frame in voiced:
-        _, spectrum = sgl.freqz(frame)
-        log_spectrum = to_db(spectrum)
-        # TODO'''
-
-
 def autocorrelation(frame, fs, threshold):
+    """
+        autocorrelation(frame, fs, threshold)
+            Compute the pitch of frame using the autocorrelation method.
+
+            Parameters
+            ----------
+            frame : ndarray
+            fs : float
+                The sampling
+            threshold : float
+                The threshold bellow which the frame is unvoiced.
+
+            Returns
+            -------
+            pitch : float
+    """
     if frame_energy(frame) < threshold:
         return 0
     lags, corr = xcorr(frame, maxlag=fs//50)
@@ -149,6 +214,22 @@ def autocorrelation(frame, fs, threshold):
 
 
 def cepstrum(frame, fs, threshold):
+    """
+        cepstrum(frame, fs, threshold)
+            Compute the pitch of frame using the cepstrum method.
+
+            Parameters
+            ----------
+            frame : ndarray
+            fs : float
+                The sampling
+            threshold : float
+                The threshold bellow which the frame is unvoiced.
+
+            Returns
+            -------
+            pitch : float
+    """
     if frame_energy(frame) < threshold:
         return 0
 
@@ -161,6 +242,30 @@ def cepstrum(frame, fs, threshold):
 
 
 def get_pitch(signal, width, step, fs, threshold, method=autocorrelation, extend=True):
+    """
+        get_pitch(signal, width, step, fs, threshold, method=autocorrelation, extend=True)
+            Compute the pitch for all frames of a signal.
+
+            Parameters
+            ----------
+            signal : ndarray
+            width : float
+            The width of frame in ms.
+            step : float
+                The step between two frames in ms.
+            fs : float
+                The sampling frequency.
+            threshold : float
+                The threshold bellow which the frame is unvoiced.
+            method : function
+                The method used to get the pitch of each frame.
+            extend : boolean
+                If False each frame have only one pitch, and ignore the unvoiced ones.
+
+            Returns
+            -------
+            pitchs : ndarray
+    """
     step_len = int(fs*step/1000)
     frames = split(normalize(signal), width, step, fs)
     pitch = []
@@ -173,6 +278,22 @@ def get_pitch(signal, width, step, fs, threshold, method=autocorrelation, extend
 
 
 def plot_energy(signal, width, step, fs, threshold=None):
+    """
+        plot_energy(signal, width, step, fs, threshold=None)
+            Compute the energy for all frames of a signal.
+
+            Parameters
+            ----------
+            signal : ndarray
+            width : float
+            The width of frame in ms.
+            step : float
+                The step between two frames in ms.
+            fs : float
+                The sampling frequency.
+            threshold : float
+                The threshold bellow which the frame is unvoiced.
+    """
     step_len = int(fs*step/1000)
     t = get_timeAxis(fs, signal)
     frames = split(normalize(signal), width, step, fs)
@@ -203,6 +324,24 @@ def plot_energy(signal, width, step, fs, threshold=None):
 
 
 def plot_pitch(signal, width, step, fs, threshold, method=autocorrelation):
+    """
+        plot_pitch(signal, width, step, fs, threshold, method=autocorrelation, extend=True)
+            Plot the pitch for all frames of a signal.
+
+            Parameters
+            ----------
+            signal : ndarray
+            width : float
+                The width of frame in ms.
+            step : float
+                The step between two frames in ms.
+            fs : float
+                The sampling frequency.
+            threshold : float
+                The threshold bellow which the frame is unvoiced.
+            method : function
+                The method used to get the pitch of each frame.
+    """
     t = get_timeAxis(fs, signal)
     pitch = get_pitch(signal, width, step, fs, threshold, method)
 
@@ -225,7 +364,25 @@ def plot_pitch(signal, width, step, fs, threshold, method=autocorrelation):
     plt.show()
 
 
+<<<<<<< HEAD
 def plot_formants(signal, width, step, fs, nb=4):
+=======
+def plot_formant(signal, width, step, fs, nb=4):
+    """
+    plot_formant(signal, width, step, fs, nb=4)
+        Plot the formants for all frames of a signal.
+
+        Parameters
+        ----------
+        signal : ndarray
+        width : float
+            The width of frame in ms.
+        step : float
+            The step between two frames in ms.
+        fs : float
+            The sampling frequency.
+    """
+>>>>>>> 5256eea5a10a2316c0a22e879284bfe742ad122f
     formant = formants(signal, width, step, fs, nb)
     axis = get_timeAxis(1/(step*1e-3), formant[:, 0])
     plt.figure(figsize=(12, 7))
@@ -240,8 +397,29 @@ def plot_formants(signal, width, step, fs, nb=4):
     plt.show()
 
 
-def formants(sig, width, step, fs, nb=4):
-    frames = split(sig, width, step, fs)
+def formants(signal, width, step, fs, nb=4):
+    """
+    formants(signal, width, step, fs, nb=4)
+        Compute the formants for all frames of a signal.
+
+        Parameters
+        ----------
+        signal : ndarray
+        width : float
+            The width of frame in ms.
+        step : float
+            The step between two frames in ms.
+        fs : float
+            The sampling frequency.
+        nb : integer
+            The number of formants considers for each frame.
+
+        Returns
+        -------
+        formants : ndarray
+            An 2 dim array with the formants of each frame.
+    """
+    frames = split(signal, width, step, fs)
     b, a = [1, -0.67], [1]
     roots = []
     for frame in frames:
@@ -261,16 +439,35 @@ def formants(sig, width, step, fs, nb=4):
     return np.sort(freq, axis=1)
 
 
-def mfcc(sig, width, step, fs, Ntfd=512):
+def mfcc(signal, width, step, fs, Ntfd=512):
+    """
+    mfcc(signal, width, step, fs, Ntfd=512)
+        Compute the mfcc for all frames of a signal.
+
+        Parameters
+        ----------
+        signal : ndarray
+        width : float
+            The width of frame in ms.
+        step : float
+            The step between two frames in ms.
+        fs : float
+            The sampling frequency.
+        Ntfd : integer
+
+        Returns
+        -------
+        formants : ndarray
+            An 2 dim array with the NFCC of each frame.
+    """
     b, a = [1, -0.97], [1]
-    sig = sgl.lfilter(b, a, sig)
-    frames = split(sig, width, step, fs)
+    signal = sgl.lfilter(b, a, signal)
+    frames = split(signal, width, step, fs)
     P = []
 
     for frame in frames:
         win_frame = sgl.windows.hamming(frame.size) * frame
         p = (np.abs(sgl.freqz(win_frame, worN=Ntfd)[1]) ** 2) / Ntfd
-        # p = ((np.abs(scipy.fft.fft(win_frame, Ntfd))) ** 2) / Ntfd
         P.append(p)
 
     P = np.array(P)
@@ -280,6 +477,25 @@ def mfcc(sig, width, step, fs, Ntfd=512):
 
 
 def build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=15, random_sate=None):
+    """
+    build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=15, random_sate=None)
+
+        Parameters
+        ----------
+        width : float
+            The width of frame in ms.
+        step : float
+            The step between two frames in ms.
+        formants_number : integer
+            The number of formants considers for each frame.
+        wav_number : integer
+            The number of signal for each speaker.
+        random_sate: float
+
+        Returns
+        -------
+        df : dataframe
+    """
     data = pick_random_files(wav_number, random_state=random_sate)
 
     fs = []
@@ -331,6 +547,19 @@ def build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=
 
 
 def accuracy(y, ypred):
+    """
+    accuracy(y, ypred)
+        Parameters
+        ----------
+        y : ndarray
+            The y targeted.
+        ypred : ndarray
+            The y predicted.
+
+        Returns
+        -------
+        accuracy : float
+    """
     return (y == ypred).sum()/len(y)
 
 
@@ -347,6 +576,9 @@ def model3(X):
 
 
 def test_rule_model():
+    """
+    Test the rule-based model
+    """
     df = build_dataset(wav_number=50, random_sate=43)
 
     df['prediction'] = df.apply(model1, axis=1)
@@ -364,6 +596,9 @@ def test_rule_model():
 
 
 def visualize_data():
+    """
+    Plot the features to visualize.
+    """
     warnings.filterwarnings('ignore')
     df = build_dataset(wav_number=15, random_sate=42)
     bdl_df = df[df['speaker'] == 'bdl']
@@ -415,6 +650,19 @@ def visualize_data():
 
 
 def evaluation(model, X_train, y_train, X_test, y_test):
+    """
+    evaluation(model, X_train, y_train, X_test, y_test)
+        Evaluate the model.
+
+        Parameters
+        ----------
+        model:
+            A sklearn model
+        X_train: ndarray
+        y_train: ndarray
+        X_test: ndarray
+        y_test: ndarray
+    """
     warnings.filterwarnings('ignore')
     model.fit(X_train, y_train)
     ypred = model.predict(X_test)
@@ -435,6 +683,19 @@ def evaluation(model, X_train, y_train, X_test, y_test):
 
 
 def preprocessing(data):
+    """
+    preprocessing(data)
+        Evaluate the model.
+
+        Parameters
+        ----------
+        data : datframe
+
+        Returns
+        -------
+        X : ndarray
+        y : ndarray
+    """
     data = data.copy()
 
     X = data.drop(['speaker'], axis=1)
@@ -453,6 +714,9 @@ def visualize_energy():
 
 
 def test_machine_learning():
+    """
+    Test the machine learning-based model.
+    """
     df = build_dataset(wav_number=120, random_sate=42)
     df = df.drop(['fs', 'duration'], axis=1)
 

@@ -57,8 +57,12 @@ Bachelor's degree in Computer Science\\}
 % \pagebreak
 
 \section{Introduction}
-In this project, we are going to extract features of a set of voice samples, to be able to classify if the sample is a
-male or female voice.
+This project's main goal is to compare rule-base systems to machine learning systems and see
+the advantages of using these. To do so, we will focus on a speaker classification project.
+The objective will be to extract different features from the audio files in the dataset and
+then visualize it to build a rule-based system and a machine learning system that will do
+the classification depending on the speaker. At the end, we will liken the two methods
+and see how advantaging is machine learning compared to a simple rule-based model.
 
 \section{Energy}
 In the \autoref{energy}, we plot the sample and its energy. We observe that with a threshold of 5,
@@ -115,7 +119,8 @@ coding's roots to obtain the formants. We can see the frequency of the four form
 \subsection{Mel-Frequency Cepstral Coefficients (MFCC)}
 The coefficients of the MFCC represent the filter of the voice tract. To extract them, we first preprocess the signal by filtering it with a
 high pass filter then by applying a Hamming window on it and finally by taking the power spectrum. Then we pass the pre-process signal through
-a Mel-filter bank. On the \autoref{fbank}, we can see the Mel filter bank computed for a random sample of voice.
+a Mel-filter bank. On the \autoref{fbank}, we can see the Mel filter bank we use to compute the coefficients.
+That filters arrangement is such that it simulates the ear perception of the sound.
 
 \begin{figure}[H]
     \centering
@@ -123,19 +128,22 @@ a Mel-filter bank. On the \autoref{fbank}, we can see the Mel filter bank comput
     \includegraphics[scale=0.5]{images/fbank.png}
 \end{figure}
 
-We can see on the \autoref{mfcc} that the first filter is more triggered than the others.
+We can see on \autoref{mfcc} how much each trigger is triggered by the different frames
+of a sentence. The first filters seem to be the most activated.
 
 \begin{figure}[H]
     \centering
     \caption{\label{mfcc}MFCC}
     \includegraphics[scale=0.5]{images/mfcc.png}
 \end{figure}
+
+
 \section{Features visualization}
 
 In order to determine on which features our rule-based system will rely upon, we will draw a
 distribution graph of each sentence's feature, separating the two speakers. To do so, we will separate all
 the features in three classes, the different pitch estimations, the formants and
-the Mel-frequency cepstrum coefficients (MFCC). These observations will be made on sample of
+the MFCC. These observations will be made on sample of
 15 sentences for each speaker.
 
 \subsection{The pitch estimations}
