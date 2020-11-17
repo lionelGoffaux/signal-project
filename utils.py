@@ -1,12 +1,19 @@
 import random
 import os
+import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 import scipy.signal as sgl
 from xcorr import xcorr
 from scipy.io.wavfile import read
 import librosa as rosa
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.model_selection import learning_curve
+from sklearn.ensemble import RandomForestClassifier
 from filterbanks import filter_banks
 import scipy.fft
 
@@ -279,8 +286,8 @@ def build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=
     for spkr, files in data.items():
         for sfs, signal in files:
             sformants = formants(signal, width, step, sfs)
-            auto_pitch = get_pitch(signal, width, step, sfs, threshold, methode=autocorrelation, extend=False)
-            cepstrum_pitch = get_pitch(signal, width, step, sfs, threshold, methode=cepstrum, extend=False)
+            auto_pitch = get_pitch(signal, width, step, sfs, threshold, method=autocorrelation, extend=False)
+            cepstrum_pitch = get_pitch(signal, width, step, sfs, threshold, method=cepstrum, extend=False)
             smfcc = mfcc(signal, width, step, sfs)
 
             for i in range(smfcc.shape[1]):
@@ -306,3 +313,142 @@ def build_dataset(width=21, step=10, threshold=5, formants_number=4, wav_number=
     d.update(dmfcc)
 
     return pd.DataFrame(data=d)
+
+
+def accuracy(y, ypred):
+    return (y == ypred).sum()/len(y)
+
+
+def model1(X):
+    return 'slt' if X['mfcc7'] >= -12 else 'bdl'
+
+
+def model2(X):
+    return 'slt' if 165 <= X['cepstrum_pitch_median'] <= 200 else 'bdl'
+
+
+def model3(X):
+    return 'slt' if X['f3_mean'] >= 4470 else 'bdl'
+
+
+def test_rule_model():
+    df = build_dataset(wav_number=50, random_sate=43)
+
+    df['prediction'] = df.apply(model1, axis=1)
+    acc1 = accuracy(df['speaker'], df["prediction"])
+
+    df['prediction'] = df.apply(model2, axis=1)
+    acc2 = accuracy(df['speaker'], df["prediction"])
+
+    df['prediction'] = df.apply(model3, axis=1)
+    acc3 = accuracy(df['speaker'], df["prediction"])
+
+    print(f'The MFCC7-based model has {acc1*100:.2f}% accuracy.')
+    print(f'The cepstrum-pitch-based model has {acc2*100:.2f}% accuracy.')
+    print(f'The formant-based model has {acc3*100:.2f}% accuracy.')
+
+
+def visualize_data():
+    warnings.filterwarnings('ignore')
+    df = build_dataset(wav_number=15, random_sate=42)
+    bdl_df = df[df['speaker'] == 'bdl']
+    slt_df = df[df['speaker'] == 'slt']
+
+    pitch_col = ['autocorr_pitch_mean', 'autocorr_pitch_median', 'cepstrum_pitch_mean', 'cepstrum_pitch_median']
+
+    formants_col = []
+    for n in range(4):
+        formants_col.append(f'f{n + 1}_mean')
+
+    mfcc_loc = []
+    for n in [5, 6, 10, 11]:
+        mfcc_loc.append(f'mfcc{n}')
+
+    plt.figure(figsize=(12, 8))
+
+    for n, col in enumerate(pitch_col):
+        plt.subplot(2, 2, n + 1)
+        sns.distplot(bdl_df[col], label='bdl')
+        sns.distplot(slt_df[col], label='slt')
+        plt.legend()
+
+    plt.show()
+
+    plt.figure(figsize=(12, 8))
+
+    for n, col in enumerate(formants_col):
+        plt.subplot(2, 2, n + 1)
+        sns.distplot(bdl_df[col], label='bdl')
+        sns.distplot(slt_df[col], label='slt')
+        plt.legend()
+
+    plt.figure(figsize=(6, 4))
+    sns.distplot(bdl_df['mfcc7'], label='bdl')
+    sns.distplot(slt_df['mfcc7'], label='slt')
+    plt.legend()
+    plt.show()
+
+    plt.figure(figsize=(12, 8))
+
+    for n, col in enumerate(mfcc_loc):
+        plt.subplot(2, 2, n + 1)
+        sns.distplot(bdl_df[col], label='bdl')
+        sns.distplot(slt_df[col], label='slt')
+        plt.legend()
+
+    plt.show()
+
+
+def evaluation(model, X_train, y_train, X_test, y_test):
+    warnings.filterwarnings('ignore')
+    model.fit(X_train, y_train)
+    ypred = model.predict(X_test)
+
+    print(confusion_matrix(y_test, ypred))
+    print(classification_report(y_test, ypred))
+
+    N, train_score, val_score = learning_curve(model, X_train, y_train, scoring='accuracy',
+                                               cv=4, train_sizes=np.linspace(0.1, 1, 10))
+
+    plt.figure(figsize=(6, 4))
+    plt.plot(N, train_score.mean(axis=1), label='train_score')
+    plt.plot(N, val_score.mean(axis=1), label='val_score')
+    plt.legend()
+    plt.grid()
+    plt.margins(x=0)
+    plt.show()
+
+
+def preprocessing(data):
+    data = data.copy()
+
+    X = data.drop(['speaker'], axis=1)
+    y = data[['speaker']]
+
+    return X, y
+
+
+def visualize_energy():
+
+    data = pick_random_files()
+
+    for speaker in data:
+        for fs, signal in data[speaker]:
+            plot_energy(signal, 21, 10, fs, 5)
+
+
+def test_machine_learning():
+    df = build_dataset(wav_number=120, random_sate=42)
+    df = df.drop(['fs', 'duration'], axis=1)
+
+    train_set, test_set = train_test_split(df, test_size=0.2, random_state=42)
+    X_train, y_train = preprocessing(train_set)
+    X_test, y_test = preprocessing(test_set)
+
+    print('Decision tree')
+    tree = DecisionTreeClassifier(random_state=42)
+    evaluation(tree, X_train, y_train, X_test, y_test)
+
+    print('Random forest')
+    rforest = RandomForestClassifier(random_state=42)
+    evaluation(rforest, X_train, y_train, X_test, y_test)
