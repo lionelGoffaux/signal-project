@@ -225,13 +225,13 @@ def plot_pitch(signal, width, step, fs, threshold, method=autocorrelation):
     plt.show()
 
 
-def plot_formant(signal, width, step, fs, nb=4):
+def plot_formants(signal, width, step, fs, nb=4):
     formant = formants(signal, width, step, fs, nb)
     axis = get_timeAxis(1/(step*1e-3), formant[:, 0])
     plt.figure(figsize=(12, 7))
     plt.title('Formants')
     for i in range(formant.shape[1]):
-        plt.plot(axis, formant[:, i], label=f'f{formant.shape[1]-i}')
+        plt.plot(axis, formant[:, i], label=f'f{i+1}')
     plt.legend()
     plt.xlabel('Time (s)')
     plt.ylabel('Frequency (Hz)')
