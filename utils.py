@@ -9,15 +9,11 @@ import scipy.signal as sgl
 import scipy.fft
 from xcorr import xcorr
 from scipy.io.wavfile import read
-<<<<<<< HEAD
-=======
-import librosa as rosa
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.model_selection import learning_curve
 from sklearn.ensemble import RandomForestClassifier
->>>>>>> lionel
 from filterbanks import filter_banks
 from py_lpc import lpc_ref
 
