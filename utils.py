@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
 from filterbanks import filter_banks
-from py_lpc import lpc_ref
+from librosa import lpc
 from xcorr import xcorr
 
 
@@ -384,7 +384,7 @@ def plot_formant(signal, width, step, fs, nb=4):
     plt.figure(figsize=(12, 7))
     plt.title('Formants')
     for i in range(formant.shape[1]):
-        plt.plot(axis, formant[:, i], label=f'f{formant.shape[1]-i}')
+        plt.plot(axis, formant[:, i], label=f'f{i+1}')
     plt.legend()
     plt.xlabel('Time (s)')
     plt.ylabel('Frequency (Hz)')
@@ -422,8 +422,8 @@ def formants(signal, width, step, fs, nb=4):
         filtered_frame = sgl.lfilter(b, a, frame)
         hamming_win = sgl.windows.hamming(filtered_frame.size)
         filtered_frame *= hamming_win  # apply hamming window on the frame
-        lpc = lpc_ref(filtered_frame, 9)
-        root = np.roots(lpc)
+        lpcs = lpc(filtered_frame, 9)
+        root = np.roots(lpcs)
         frame_res = root[root.imag > 0][:nb]
         if len(frame_res < nb):
             frame_res = np.concatenate((frame_res, [0]*(nb-len(frame_res))))
