@@ -53,8 +53,8 @@ Bachelor's degree in Computer Science\\}
 \maketitle
 \pagebreak
 
-% \tableofcontents
-% \pagebreak
+\tableofcontents
+\pagebreak
 
 \section{Introduction}
 This project's main goal is to compare rule-base systems to machine learning systems and see
@@ -136,6 +136,10 @@ of a sentence. The first filters seem to be the most activated.
     \caption{\label{mfcc}MFCC}
     \includegraphics[scale=0.5]{images/mfcc.png}
 \end{figure}
+
+To test this method, we take sinusoidal signal of 500 Hz sampled at 16kHz, and we test if the right filter is triggered. To know which filter is triggered,
+we compute $\frac{500}{16000}*1023$, it gives us an approximation of the position of the filter. For this sinusoidal
+signal, we see that approximation correspond to the ninth filter (we start counting at 0).
 
 
 \section{Features visualization}
