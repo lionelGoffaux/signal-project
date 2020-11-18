@@ -695,7 +695,7 @@ def preprocessing(data):
     data = data.copy()
 
     X = data.drop(['speaker'], axis=1)
-    y = data[['speaker']]
+    y = data['speaker']
 
     return X, y
 
