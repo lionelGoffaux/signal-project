@@ -695,7 +695,7 @@ def preprocessing(data):
     data = data.copy()
 
     X = data.drop(['speaker'], axis=1)
-    y = data[['speaker']]
+    y = data['speaker']
 
     return X, y
 
@@ -727,3 +727,7 @@ def test_machine_learning():
     print('Random forest')
     rforest = RandomForestClassifier(random_state=42)
     evaluation(rforest, X_train, y_train, X_test, y_test)
+
+
+if __name__ == '__main__':
+    test_rule_model()
