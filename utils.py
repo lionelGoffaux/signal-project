@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
 from filterbanks import filter_banks
-from py_lpc import lpc_ref
+from librosa import lpc
 from xcorr import xcorr
 
 
@@ -422,8 +422,8 @@ def formants(signal, width, step, fs, nb=4):
         filtered_frame = sgl.lfilter(b, a, frame)
         hamming_win = sgl.windows.hamming(filtered_frame.size)
         filtered_frame *= hamming_win  # apply hamming window on the frame
-        lpc = lpc_ref(filtered_frame, 9)
-        root = np.roots(lpc)
+        lpcs = lpc(filtered_frame, 9)
+        root = np.roots(lpcs)
         frame_res = root[root.imag > 0][:nb]
         if len(frame_res < nb):
             frame_res = np.concatenate((frame_res, [0]*(nb-len(frame_res))))
